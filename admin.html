@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Administrativo</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --sidebar-bg: #2c3e50;
+            --sidebar-text: #ecf0f1;
+            --sidebar-hover-bg: #34495e;
+            --sidebar-active-bg: #2980b9;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background-color: #f0f2f5;
+            color: #333;
+        }
+        .page-wrapper {
+            display: flex;
+            height: 100vh;
+        }
+        .sidebar {
+            width: 250px;
+            background-color: var(--sidebar-bg);
+            color: var(--sidebar-text);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+        .sidebar-header {
+            padding: 20px 30px;
+            font-size: 1.8em;
+            font-weight: bold;
+            text-align: center;
+            background-color: rgba(0,0,0,0.2);
+        }
+        .menu ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+        .menu a {
+            display: block;
+            padding: 15px 30px;
+            color: var(--sidebar-text);
+            text-decoration: none;
+            transition: background-color 0.2s;
+            cursor: pointer;
+        }
+        .menu a:hover {
+            background-color: var(--sidebar-hover-bg);
+        }
+        .submenu {
+            background-color: rgba(0,0,0,0.2);
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .submenu a {
+            padding-left: 45px;
+        }
+        .menu-item-has-children.open > .submenu {
+            max-height: 200px; /* Aumente se precisar de mais itens */
+        }
+        .content-wrapper {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 30px;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            flex-shrink: 0;
+            border-bottom: 1px solid #ddd;
+        }
+        #nome-usuario { font-weight: bold; font-size: 1.1em; }
+        .main-content {
+            padding: 30px;
+            flex-grow: 1;
+        }
+        .panel.hidden {
+            display: none;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1em;
+            box-sizing: border-box;
+        }
+        .action-btn {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.1em;
+            font-weight: bold;
+            color: white;
+            background-color: #007bff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .action-btn:hover { background-color: #0056b3; }
+        #usuario-status-msg, .status-msg {
+            margin-top: 15px;
+            font-weight: bold;
+            height: 20px;
+        }
+        .management-panel {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 30px;
+            align-items: start;
+        }
+        .item-list {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #eee;
+            border-radius: 4px;
+        }
+        .item-list table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .item-list th, .item-list td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        .item-list .delete-btn {
+            background: none;
+            border: none;
+            color: #d9534f;
+            cursor: pointer;
+            font-size: 1.2em;
+        }
+        .item-list tr.preferencial {
+            background-color: #fffbe6; /* A light yellow */
+            font-weight: bold;
+        }
+        .dashboard-item {
+            display: grid;
+            grid-template-columns: 3fr 1fr;
+            gap: 30px;
+            align-items: center;
+        }
+        .chart-legend ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .chart-legend li {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            font-size: 1.1em;
+        }
+        .chart-legend .legend-color-box {
+            width: 20px;
+            height: 20px;
+            margin-right: 15px;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+        .chart-legend .legend-label { flex-grow: 1; color: #555; }
+        .chart-legend .legend-value { font-weight: bold; color: #333; }
+        .panel {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+            padding: 30px;
+        }
+        .logout-btn {
+            padding: 10px 20px; font-size: 1em; color: white;
+            background-color: #dc3545; border: none; border-radius: 5px; cursor: pointer;
+        }
+        .logout-btn:hover { background-color: #c82333; }
+    </style>
+</head>
+<body>
+    <script>
+        // Checa se o usuário está logado e se é administrador
+        const usuario = JSON.parse(sessionStorage.getItem('usuario'));
+        if (!usuario || usuario.perfil !== 'administrador') {
+            window.location.href = 'login.html';
+        }
+    </script>
+    <div class="page-wrapper">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                Admin
+            </div>
+            <nav class="menu">
+                <ul>
+                    <li class="menu-item-has-children">
+                        <a>Dashboard</a>
+                        <ul class="submenu">
+                            <li><a class="menu-link" data-target="panel-dashboard">Visão Geral</a></li>
+                            <li><a class="menu-link" data-target="panel-senhas-espera">Senhas em Espera</a></li>
+                        </ul>
+                    </li>
+                    <li class="menu-item-has-children">
+                        <a>Cadastros</a>
+                        <ul class="submenu">
+                            <li><a class="menu-link" data-target="panel-cad-usuario">Usuário</a></li>
+                            <li><a class="menu-link" data-target="panel-cad-servico">Serviços</a></li>
+                            <li><a class="menu-link" data-target="panel-cad-medico">Médicos</a></li>
+                            <li><a class="menu-link" data-target="panel-cad-consultorio">Consultórios</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
+
+        <div class="content-wrapper">
+            <header class="page-header">
+                <span id="nome-usuario"></span>
+                <button onclick="logout()" class="logout-btn">Sair</button>
+            </header>
+
+            <main class="main-content">
+                <section id="panel-dashboard" class="panel">
+                    <div class="dashboard-item">
+                        <div>
+                            <h3>Atendimentos por Serviço (Últimos 30 dias)</h3>
+                            <div id="chart-container" style="position: relative; height: 50vh; width: 100%;">
+                                <canvas id="atendimentosChart"></canvas>
+                                <p id="no-chart-data" style="display: none; text-align: center; padding-top: 50px; font-style: italic; color: #666;">Não há dados de atendimentos nos últimos 30 dias.</p>
+                            </div>
+                        </div>
+                        <div id="legend-container-30dias" class="chart-legend"></div>
+                    </div>
+
+                    <hr style="margin: 40px 0; border: 0; border-top: 1px solid #eee;">
+
+                    <div class="dashboard-item">
+                        <div>
+                            <h3>Atendimentos por Serviço (Hoje)</h3>
+                            <div id="chart-container-hoje" style="position: relative; height: 50vh; width: 100%;">
+                                <canvas id="atendimentosChartHoje"></canvas>
+                                <p id="no-chart-data-hoje" style="display: none; text-align: center; padding-top: 50px; font-style: italic; color: #666;">Não há dados de atendimentos hoje.</p>
+                            </div>
+                        </div>
+                        <div id="legend-container-hoje" class="chart-legend"></div>
+                    </div>
+
+                    <hr style="margin: 40px 0; border: 0; border-top: 1px solid #eee;">
+
+                    <div class="dashboard-item">
+                        <div>
+                            <h3>Senhas Canceladas por Serviço (Hoje)</h3>
+                            <div id="chart-container-canceladas" style="position: relative; height: 50vh; width: 100%;">
+                                <canvas id="canceladasChartHoje"></canvas>
+                                <p id="no-chart-data-canceladas" style="display: none; text-align: center; padding-top: 50px; font-style: italic; color: #666;">Nenhuma senha cancelada hoje.</p>
+                            </div>
+                        </div>
+                        <div id="legend-container-canceladas" class="chart-legend"></div>
+                    </div>
+                </section>
+
+                <section id="panel-senhas-espera" class="panel hidden">
+                    <h3>Senhas na Fila de Espera</h3>
+                    <div class="item-list" id="list-senhas-espera">
+                        <!-- Tabela de senhas em espera será populada aqui -->
+                    </div>
+                </section>
+    
+                <section id="panel-cad-usuario" class="panel hidden management-panel">
+                    <div>
+                        <h3>Cadastrar Novo Usuário</h3>
+                        <form id="form-add-usuario">
+                            <div class="form-group">
+                                <label for="nome-completo">Nome Completo</label>
+                                <input type="text" id="nome-completo" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="username">Nome de Usuário</label>
+                                <input type="text" id="username" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="password">Senha</label>
+                                <input type="password" id="password" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="perfil">Perfil</label>
+                                <select id="perfil" required>
+                                    <option value="atendente" selected>Atendente</option>
+                                    <option value="administrador">Administrador</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="action-btn">Cadastrar Usuário</button>
+                        </form>
+                        <p id="usuario-status-msg"></p>
+                    </div>
+                    <div class="item-list">
+                        <!-- Lista de usuários será populada aqui -->
+                    </div>
+                </section>
+
+                <section id="panel-cad-servico" class="panel hidden management-panel">
+                    <div>
+                        <h3>Adicionar Novo Serviço</h3>
+                        <form id="form-add-servico" class="form-generic" data-tipo="servicos">
+                            <div class="form-group">
+                                <label for="nome-servico">Nome do Serviço</label>
+                                <input type="text" id="nome-servico" required>
+                            </div>
+                            <button type="submit" class="action-btn">Adicionar Serviço</button>
+                        </form>
+                        <p id="servicos-status-msg" class="status-msg"></p>
+                    </div>
+                    <div id="list-servicos" class="item-list"></div>
+                </section>
+
+                <section id="panel-cad-medico" class="panel hidden management-panel">
+                    <div>
+                        <h3>Adicionar Novo Médico</h3>
+                        <form id="form-add-medico" class="form-generic" data-tipo="medicos">
+                            <div class="form-group">
+                                <label for="nome-medico">Nome do Médico</label>
+                                <input type="text" id="nome-medico" required>
+                            </div>
+                            <button type="submit" class="action-btn">Adicionar Médico</button>
+                        </form>
+                        <p id="medicos-status-msg" class="status-msg"></p>
+                    </div>
+                    <div id="list-medicos" class="item-list"></div>
+                </section>
+
+                <section id="panel-cad-consultorio" class="panel hidden management-panel">
+                    <div>
+                        <h3>Adicionar Novo Consultório</h3>
+                        <form id="form-add-consultorio" class="form-generic" data-tipo="consultorios">
+                            <div class="form-group">
+                                <label for="nome-consultorio">Nome do Consultório</label>
+                                <input type="text" id="nome-consultorio" required>
+                            </div>
+                            <button type="submit" class="action-btn">Adicionar Consultório</button>
+                        </form>
+                        <p id="consultorios-status-msg" class="status-msg"></p>
+                    </div>
+                    <div id="list-consultorios" class="item-list"></div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('nome-usuario').textContent = `Olá, ${usuario.nome_completo}`;
+        function logout() {
+            sessionStorage.clear();
+            window.location.href = 'login.html';
+        }
+
+        // --- Lógica do Menu ---
+        document.querySelectorAll('.menu-item-has-children > a').forEach(menuItem => {
+            menuItem.addEventListener('click', (event) => {
+                event.preventDefault();
+                const parent = menuItem.parentElement;
+                parent.classList.toggle('open');
+            });
+        });
+
+        function showPanel(targetId) {
+            // Esconde todos os painéis
+            document.querySelectorAll('.main-content .panel').forEach(panel => {
+                panel.classList.add('hidden');
+            });
+
+            // Mostra o painel alvo
+            const targetPanel = document.getElementById(targetId);
+            if (targetPanel) {
+                targetPanel.classList.remove('hidden');
+                
+                // Se o painel for de gerenciamento, carrega a lista de itens
+                if (targetId.includes('-servico')) carregarItens('servicos');
+                if (targetId.includes('-medico')) carregarItens('medicos');
+                if (targetId.includes('-consultorio')) carregarItens('consultorios');
+                if (targetId.includes('-usuario')) carregarUsuarios();
+                if (targetId === 'panel-dashboard') {
+                    carregarGraficoAtendimentos();
+                    carregarGraficoAtendimentosHoje();
+                    carregarSenhasCanceladasHoje();
+                }
+                if (targetId === 'panel-senhas-espera') carregarSenhasEmEspera();
+            }
+        }
+
+        document.querySelectorAll('.menu-link').forEach(link => {
+            link.addEventListener('click', (event) => {
+                event.preventDefault();
+                const targetId = link.getAttribute('data-target');
+                showPanel(targetId);
+            });
+        });
+
+        // --- Lógica do Gráfico ---
+        let atendimentosChart = null;
+        let atendimentosChartHoje = null;
+        let canceladasChartHoje = null;
+        async function carregarGraficoAtendimentos() {
+            const chartContainer = document.getElementById('chart-container');
+            const canvas = document.getElementById('atendimentosChart');
+            const noDataMsg = document.getElementById('no-chart-data');
+            const legendContainer = document.getElementById('legend-container-30dias');
+
+            try {
+                const response = await fetch('http://localhost:3000/api/relatorios/atendimentos-por-servico');
+                const dados = await response.json();
+
+                legendContainer.innerHTML = ''; // Limpa a legenda
+
+                if (dados.length === 0) {
+                    canvas.style.display = 'none';
+                    noDataMsg.style.display = 'block';
+                    if (atendimentosChart) {
+                        atendimentosChart.destroy();
+                        atendimentosChart = null;
+                    }
+                    return;
+                }
+
+                canvas.style.display = 'block';
+                noDataMsg.style.display = 'none';
+
+                const labels = dados.map(d => d.servico);
+                const totais = dados.map(d => d.total);
+
+                const ctx = canvas.getContext('2d');
+
+                if (atendimentosChart) {
+                    atendimentosChart.destroy(); // Destrói o gráfico antigo para criar um novo
+                }
+
+                const backgroundColors = [
+                    'rgba(255, 99, 132, 0.7)',
+                    'rgba(54, 162, 235, 0.7)',
+                    'rgba(255, 206, 86, 0.7)',
+                    'rgba(75, 192, 192, 0.7)',
+                    'rgba(153, 102, 255, 0.7)',
+                    'rgba(255, 159, 64, 0.7)'
+                ];
+
+                atendimentosChart = new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Atendimentos',
+                            data: totais,
+                            backgroundColor: backgroundColors,
+                            borderColor: 'rgba(255, 255, 255, 0.8)',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false } // Desabilita a legenda padrão
+                        }
+                    }
+                });
+
+                // Gera a legenda customizada
+                const legendUl = document.createElement('ul');
+                labels.forEach((label, index) => {
+                    const value = totais[index];
+                    const color = backgroundColors[index % backgroundColors.length];
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <span class="legend-color-box" style="background-color: ${color}"></span>
+                        <span class="legend-label">${label}</span>
+                        <span class="legend-value">${value}</span>
+                    `;
+                    legendUl.appendChild(li);
+                });
+                legendContainer.appendChild(legendUl);
+
+            } catch (error) {
+                console.error('Erro ao carregar dados do gráfico:', error);
+                chartContainer.innerHTML = `<p style="color:red; text-align:center;">Erro ao carregar o gráfico.</p>`;
+            }
+        }
+
+        async function carregarGraficoAtendimentosHoje() {
+            const chartContainer = document.getElementById('chart-container-hoje');
+            const canvas = document.getElementById('atendimentosChartHoje');
+            const noDataMsg = document.getElementById('no-chart-data-hoje');
+            const legendContainer = document.getElementById('legend-container-hoje');
+
+            try {
+                const response = await fetch('http://localhost:3000/api/relatorios/atendimentos-hoje');
+                const dados = await response.json();
+
+                legendContainer.innerHTML = ''; // Limpa a legenda
+
+                if (dados.length === 0) {
+                    canvas.style.display = 'none';
+                    noDataMsg.style.display = 'block';
+                    if (atendimentosChartHoje) {
+                        atendimentosChartHoje.destroy();
+                        atendimentosChartHoje = null;
+                    }
+                    return;
+                }
+
+                canvas.style.display = 'block';
+                noDataMsg.style.display = 'none';
+
+                const labels = dados.map(d => d.servico);
+                const totais = dados.map(d => d.total);
+
+                const ctx = canvas.getContext('2d');
+
+                if (atendimentosChartHoje) {
+                    atendimentosChartHoje.destroy();
+                }
+
+                const backgroundColors = [ // Paleta de cores um pouco diferente
+                    'rgba(75, 192, 192, 0.7)',
+                    'rgba(255, 159, 64, 0.7)',
+                    'rgba(153, 102, 255, 0.7)',
+                    'rgba(255, 99, 132, 0.7)',
+                    'rgba(54, 162, 235, 0.7)',
+                    'rgba(255, 206, 86, 0.7)'
+                ];
+
+                atendimentosChartHoje = new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Atendimentos de Hoje',
+                            data: totais,
+                            backgroundColor: backgroundColors,
+                            borderColor: 'rgba(255, 255, 255, 0.8)',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } }
+                    }
+                });
+
+                // Gera a legenda customizada
+                const legendUl = document.createElement('ul');
+                labels.forEach((label, index) => {
+                    const value = totais[index];
+                    const color = backgroundColors[index % backgroundColors.length];
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <span class="legend-color-box" style="background-color: ${color}"></span>
+                        <span class="legend-label">${label}</span>
+                        <span class="legend-value">${value}</span>
+                    `;
+                    legendUl.appendChild(li);
+                });
+                legendContainer.appendChild(legendUl);
+            } catch (error) {
+                console.error('Erro ao carregar dados do gráfico de hoje:', error);
+                chartContainer.innerHTML = `<p style="color:red; text-align:center;">Erro ao carregar o gráfico de hoje.</p>`;
+            }
+        }
+
+        // --- Lógica para Senhas em Espera ---
+        async function carregarSenhasEmEspera() {
+            const listContainer = document.getElementById('list-senhas-espera');
+            if (!listContainer) return;
+
+            try {
+                const response = await fetch('http://localhost:3000/api/senhas/aguardando');
+                const senhas = await response.json();
+
+                let tableHTML = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Senha</th>
+                                <th>Tipo</th>
+                                <th>Serviço</th>
+                                <th>Gerada em</th>
+                                <th>Tempo de Espera</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+                
+                if (senhas.length === 0) {
+                    tableHTML += `<tr><td colspan="5" style="text-align:center;">Nenhuma senha na fila de espera.</td></tr>`;
+                } else {
+                    senhas.forEach(senha => {
+                        // Formata a data e hora de geração, com verificação de validade
+                        // Converte o formato da data do MySQL para um formato ISO 8601 compatível com JS
+                        const dataString = senha.data_hora ? String(senha.data_hora).replace(' ', 'T') : null;
+                        const dataGeracao = dataString ? new Date(dataString) : null;
+                        
+                        // Verificação final antes de exibir, com formatação explícita
+                        const geradaEm = dataGeracao && !isNaN(dataGeracao)
+                            ? dataGeracao.toLocaleString('pt-BR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                            : 'N/A';
+                        tableHTML += `
+                            <tr class="${senha.tipo === 'preferencial' ? 'preferencial' : ''}">
+                                <td><strong>${senha.senha}</strong></td>
+                                <td>${senha.tipo}</td>
+                                <td>${senha.servico || 'N/A'}</td>
+                                <td>${geradaEm}</td>
+                                <td style="font-weight: bold; color: #d9534f;">${senha.tempo_espera || '00:00:00'}</td>
+                            </tr>`;
+                    });
+                }
+                
+                tableHTML += `</tbody></table>`;
+                listContainer.innerHTML = tableHTML;
+            } catch (error) {
+                console.error('Erro ao carregar senhas em espera:', error);
+                listContainer.innerHTML = `<p style="color:red;">Erro ao carregar a lista de senhas.</p>`;
+            }
+        }
+
+        // --- Lógica para Senhas Canceladas ---
+        async function carregarSenhasCanceladasHoje() {
+            const chartContainer = document.getElementById('chart-container-canceladas');
+            const canvas = document.getElementById('canceladasChartHoje');
+            const noDataMsg = document.getElementById('no-chart-data-canceladas');
+            const legendContainer = document.getElementById('legend-container-canceladas');
+
+            if (!chartContainer) return;
+
+            try {
+                const response = await fetch('http://localhost:3000/api/relatorios/senhas-canceladas-hoje');
+                const senhas = await response.json();
+
+                legendContainer.innerHTML = ''; // Limpa a legenda
+
+                if (senhas.length === 0) {
+                    canvas.style.display = 'none';
+                    noDataMsg.style.display = 'block';
+                    if (canceladasChartHoje) {
+                        canceladasChartHoje.destroy();
+                        canceladasChartHoje = null;
+                    }
+                    return;
+                }
+
+                canvas.style.display = 'block';
+                noDataMsg.style.display = 'none';
+
+                const labels = senhas.map(s => s.servico);
+                const totais = senhas.map(s => s.total);
+                const ctx = canvas.getContext('2d');
+
+                if (canceladasChartHoje) {
+                    canceladasChartHoje.destroy();
+                }
+
+                const backgroundColors = [ // Usando uma paleta de cores diferente para distinguir
+                    '#6c757d', '#17a2b8', '#fd7e14', '#6610f2', '#e83e8c', '#20c997'
+                ].map(color => color + 'B3'); // Adiciona 70% de opacidade
+
+                canceladasChartHoje = new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Senhas Canceladas',
+                            data: totais,
+                            backgroundColor: backgroundColors,
+                            borderColor: 'rgba(255, 255, 255, 0.8)',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } }
+                    }
+                });
+
+                // Gera a legenda customizada
+                const legendUl = document.createElement('ul');
+                labels.forEach((label, index) => {
+                    const value = totais[index];
+                    const color = backgroundColors[index % backgroundColors.length];
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <span class="legend-color-box" style="background-color: ${color}"></span>
+                        <span class="legend-label">${label}</span>
+                        <span class="legend-value">${value}</span>
+                    `;
+                    legendUl.appendChild(li);
+                });
+                legendContainer.appendChild(legendUl);
+
+            } catch (error) {
+                console.error('Erro ao carregar senhas canceladas:', error);
+                chartContainer.innerHTML = `<p style="color:red; text-align:center;">Erro ao carregar o gráfico de senhas canceladas.</p>`;
+            }
+        }
+
+        // --- Lógica Genérica para Cadastros Simples ---
+
+        async function carregarItens(tipo) {
+            const listContainer = document.getElementById(`list-${tipo}`);
+            if (!listContainer) return;
+
+            try {
+                const response = await fetch(`http://localhost:3000/api/${tipo}`);
+                const itens = await response.json();
+
+                let tableHTML = `
+                    <table>
+                        <thead><tr><th>Nome</th><th>Ação</th></tr></thead>
+                        <tbody>`;
+                
+                if (itens.length === 0) {
+                    tableHTML += `<tr><td colspan="2" style="text-align:center;">Nenhum item cadastrado.</td></tr>`;
+                } else {
+                    itens.forEach(item => {
+                        tableHTML += `
+                            <tr>
+                                <td>${item.nome}</td>
+                                <td><button class="delete-btn" onclick="excluirItem(${item.id}, '${tipo}')">🗑️</button></td>
+                            </tr>`;
+                    });
+                }
+                
+                tableHTML += `</tbody></table>`;
+                listContainer.innerHTML = tableHTML;
+            } catch (error) {
+                console.error(`Erro ao carregar ${tipo}:`, error);
+                listContainer.innerHTML = `<p style="color:red;">Erro ao carregar a lista.</p>`;
+            }
+        }
+
+        async function adicionarItem(event, tipo) {
+            event.preventDefault();
+            const form = event.target;
+            const input = form.querySelector('input[type="text"]');
+            const statusMsg = document.getElementById(`${tipo}-status-msg`);
+            
+            try {
+                const response = await fetch(`http://localhost:3000/api/${tipo}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nome: input.value })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.message);
+
+                statusMsg.textContent = data.message;
+                statusMsg.style.color = 'green';
+                form.reset();
+                carregarItens(tipo); // Recarrega a lista
+            } catch (error) {
+                statusMsg.textContent = error.message;
+                statusMsg.style.color = '#d9534f';
+            }
+        }
+
+        async function excluirItem(id, tipo) {
+            if (!confirm(`Tem certeza que deseja excluir este item?`)) return;
+            try {
+                await fetch(`http://localhost:3000/api/${tipo}/${id}`, { method: 'DELETE' });
+                carregarItens(tipo); // Recarrega a lista
+            } catch (error) {
+                alert(`Erro ao excluir o item.`);
+                console.error(`Erro ao excluir ${tipo}:`, error);
+            }
+        }
+
+        // --- Lógica para Gerenciamento de Usuários ---
+
+        async function carregarUsuarios() {
+            const listContainer = document.querySelector('#panel-cad-usuario .item-list');
+            try {
+                const response = await fetch('http://localhost:3000/api/usuarios');
+                const usuarios = await response.json();
+
+                let tableHTML = `
+                    <table>
+                        <thead><tr><th>Nome Completo</th><th>Usuário</th><th>Perfil</th><th>Ação</th></tr></thead>
+                        <tbody>`;
+                
+                if (usuarios.length === 0) {
+                    tableHTML += `<tr><td colspan="4" style="text-align:center;">Nenhum usuário cadastrado.</td></tr>`;
+                } else {
+                    usuarios.forEach(u => {
+                        tableHTML += `
+                            <tr>
+                                <td>${u.nome_completo}</td>
+                                <td>${u.username}</td>
+                                <td>${u.perfil}</td>
+                                <td>
+                                    ${u.id !== usuario.id ? `<button class="delete-btn" onclick="excluirUsuario(${u.id})">🗑️</button>` : ''}
+                                </td>
+                            </tr>`;
+                    });
+                }
+                
+                tableHTML += `</tbody></table>`;
+                listContainer.innerHTML = tableHTML;
+            } catch (error) {
+                console.error('Erro ao carregar usuários:', error);
+                listContainer.innerHTML = `<p style="color:red;">Erro ao carregar a lista de usuários.</p>`;
+            }
+        }
+
+        async function excluirUsuario(id) {
+            if (id === usuario.id) {
+                alert('Você não pode excluir seu próprio usuário.');
+                return;
+            }
+            if (!confirm('Tem certeza que deseja excluir este usuário?')) return;
+
+            try {
+                await fetch(`http://localhost:3000/api/usuarios/${id}`, { method: 'DELETE' });
+                carregarUsuarios(); // Recarrega a lista
+            } catch (error) {
+                alert('Erro ao excluir o usuário.');
+                console.error('Erro ao excluir usuário:', error);
+            }
+        }
+
+        document.querySelectorAll('.form-generic').forEach(form => {
+            form.addEventListener('submit', (event) => adicionarItem(event, form.dataset.tipo));
+        });
+
+        // --- Lógica para Cadastro de Usuário ---
+        document.getElementById('form-add-usuario').addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const nomeCompleto = document.getElementById('nome-completo').value;
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const perfil = document.getElementById('perfil').value;
+            const statusMsg = document.getElementById('usuario-status-msg');
+
+            statusMsg.textContent = '';
+
+            if (!nomeCompleto || !username || !password) {
+                statusMsg.textContent = 'Por favor, preencha todos os campos.';
+                statusMsg.style.color = '#d9534f';
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:3000/api/usuarios', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nome_completo: nomeCompleto, username, password, perfil })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    statusMsg.textContent = data.message;
+                    statusMsg.style.color = 'green';
+                    document.getElementById('form-add-usuario').reset(); // Limpa o formulário
+                    carregarUsuarios(); // Recarrega a lista de usuários
+                } else {
+                    throw new Error(data.message || 'Erro ao cadastrar usuário.');
+                }
+            } catch (error) {
+                statusMsg.textContent = error.message;
+                statusMsg.style.color = '#d9534f';
+                console.error('Erro ao cadastrar usuário:', error);
+            }
+        });
+
+        // Carrega o gráfico inicial ao carregar a página
+        document.addEventListener('DOMContentLoaded', () => {
+            carregarGraficoAtendimentos();
+            carregarGraficoAtendimentosHoje();
+            carregarSenhasCanceladasHoje();
+            // Atualiza a lista de senhas em espera a cada 5 segundos se o painel estiver visível
+            setInterval(() => {
+                if (!document.getElementById('panel-senhas-espera').classList.contains('hidden')) {
+                    carregarSenhasEmEspera();
+                }
+                // Atualiza os dados do dashboard (gráficos de hoje e canceladas)
+                if (!document.getElementById('panel-dashboard').classList.contains('hidden')) {
+                    carregarGraficoAtendimentosHoje();
+                    carregarSenhasCanceladasHoje();
+                }
+            }, 5000);
+        });
+    </script>
+</body>
+</html>

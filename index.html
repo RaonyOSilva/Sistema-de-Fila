@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Painel de Atendimento</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="left">
+    <div>
+      <div class="titulo">SENHA ATUAL</div>
+      <div class="senha-wrapper">
+        <div class="senha" id="senhaAtual">-</div>
+        <div class="tipo-senha" id="tipoSenha"></div>
+      </div>
+      <div class="servico" id="servicoAtual">Nenhuma senha em atendimento</div>
+      <div class="guiche" id="guicheAtual">Aguardando chamada...</div>
+    </div>
+    <div class="historico" id="historicoAtendimentos">
+      <p><strong>Últimos atendimentos:</strong></p>
+      <!-- Populado via JavaScript -->
+    </div>
+  </div>
+  <div class="right">
+    <video class="video" autoplay muted loop id="video">
+      <source src="videos/video1.mp4" type="video/mp4" />
+      Seu navegador não suporta vídeos HTML5.
+    </video>
+    <div class="overlay-text">Seja Bem Vindo(a)!</div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

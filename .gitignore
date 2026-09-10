@@ -1,0 +1,8 @@
+﻿node_modules/
+config.local.json
+.env
+.env.*
+!.env.example
+banco/*.sql
+!banco/schema.sql
+*.log

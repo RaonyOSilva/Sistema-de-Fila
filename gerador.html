@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gerador de Senhas</title>
+  <style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        background-color: #f0f2f5;
+        color: #333;
+        -webkit-tap-highlight-color: transparent; /* Melhora a experiência de toque */
+    }
+    .page-wrapper {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        box-sizing: border-box;
+    }
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 30px;
+        background-color: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        flex-shrink: 0;
+    }
+    .page-header h1 {
+        margin: 0;
+        font-size: 1.8em;
+    }
+    .main-content {
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        flex-grow: 1;
+        padding: 40px 30px;
+        overflow-y: auto;
+    }
+    .panel {
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+        padding: 30px 40px;
+        width: 100%;
+        max-width: 600px;
+    }
+    .form-group {
+        margin-bottom: 20px;
+    }
+    .form-group label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 8px;
+    }
+    .form-group input[type="text"],
+    .form-group select {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 1em;
+        box-sizing: border-box;
+    }
+    .radio-group {
+        margin-top: 25px;
+        border: 1px solid #ddd;
+        padding: 20px;
+        border-radius: 5px;
+    }
+    .radio-group legend {
+        font-weight: bold;
+        padding: 0 10px;
+        margin-left: -10px;
+    }
+    .radio-group input[type="radio"] {
+        transform: scale(1.5); /* Aumenta o tamanho dos botões de rádio para o toque */
+        margin-right: 10px;
+    }
+    .radio-group label {
+        display: inline-block;
+        margin: 0 15px 0 5px;
+        font-weight: normal;
+    }
+    .btn-gerar {
+        width: 100%;
+        padding: 18px;
+        font-size: 1.4em;
+        font-weight: bold;
+        color: white;
+        background-color: #007bff;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        margin-top: 30px;
+        transition: background-color 0.2s ease-in-out;
+    }
+    .btn-gerar:hover {
+        background-color: #0056b3;
+    }
+    .btn-gerar:active {
+        background-color: #00458a; /* Feedback visual para o toque */
+    }
+    #senha {
+        background-color: #e9ecef;
+        font-weight: bold;
+        text-align: center;
+        font-size: 1.2em;
+        color: #d9534f;
+    }
+
+    /* --- Media Queries para Responsividade --- */
+
+    /* Para tablets e telas menores */
+    @media (max-width: 768px) {
+        .main-content {
+            padding: 20px 15px; /* Reduz o espaçamento */
+        }
+        .panel {
+            padding: 25px;
+        }
+        .page-header h1 {
+            font-size: 1.5em;
+        }
+        .btn-gerar {
+            padding: 16px;
+            font-size: 1.2em;
+        }
+    }
+
+    /* Para telas de celular/totem vertical */
+    @media (max-width: 480px) {
+        .main-content {
+            padding: 0;
+        }
+        .panel {
+            box-shadow: none;
+            border-radius: 0;
+            min-height: calc(100vh - 70px); /* Ocupa a tela toda abaixo do header */
+        }
+        .page-header {
+            padding: 15px;
+        }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrapper">
+    <header class="page-header">
+        <h1>Gerador de Senhas</h1>
+    </header>
+
+    <main class="main-content">
+        <section class="panel">
+            <div class="form-group">
+                <label for="senha">Senha Gerada:</label>
+                <input type="text" id="senha" readonly placeholder="A senha gerada aparecerá aqui" />
+            </div>
+
+            <div class="form-group">
+                <label for="servico">Serviço:</label>
+                <select id="servico"><!-- Populado via JavaScript --></select>
+            </div>
+
+            <div class="form-group">
+                <label for="medico">Médico:</label>
+                <select id="medico"><!-- Populado via JavaScript --></select>
+            </div>
+
+            <div class="form-group">
+                <label for="consultorio">Consultório:</label>
+                <select id="consultorio"><!-- Populado via JavaScript --></select>
+            </div>
+            
+            <fieldset class="radio-group">
+                <legend>Tipo de Atendimento</legend>
+                <input type="radio" id="tipo-normal" name="tipo_atendimento" value="normal" checked>
+                <label for="tipo-normal">Normal</label>
+                <input type="radio" id="tipo-preferencial" name="tipo_atendimento" value="preferencial">
+                <label for="tipo-preferencial">Preferencial</label>
+            </fieldset>
+
+            <button onclick="adicionarSenha()" class="btn-gerar">Gerar Senha</button>
+        </section>
+    </main>
+  </div>
+
+  <script>
+    /**
+     * Helper para popular um <select> com opções.
+     * @param {string} selectId - O ID do elemento <select>.
+     * @param {Array} items - Um array de objetos, cada um com uma propriedade 'nome'.
+     * @param {string} placeholder - O texto para a primeira opção desabilitada.
+     */
+    function popularSelect(selectId, items, placeholder) {
+        const select = document.getElementById(selectId);
+        select.innerHTML = ''; // Limpa opções existentes
+
+        // Adiciona a opção de placeholder
+        const placeholderOption = document.createElement('option');
+        placeholderOption.value = '';
+        placeholderOption.textContent = placeholder;
+        placeholderOption.disabled = true;
+        placeholderOption.selected = true;
+        select.appendChild(placeholderOption);
+
+        // Adiciona os itens recebidos do servidor
+        items.forEach(item => {
+            const option = document.createElement('option');
+            option.value = item.nome;
+            option.textContent = item.nome;
+            select.appendChild(option);
+        });
+    }
+
+    /**
+     * Carrega todas as opções dos dropdowns do servidor.
+     */
+    async function carregarOpcoes() {
+        try {
+            const [servicosRes, medicosRes, consultoriosRes] = await Promise.all([
+                fetch('http://localhost:3000/api/servicos'),
+                fetch('http://localhost:3000/api/medicos'),
+                fetch('http://localhost:3000/api/consultorios')
+            ]);
+
+            if (!servicosRes.ok || !medicosRes.ok || !consultoriosRes.ok) {
+                throw new Error('Falha ao carregar opções do servidor.');
+            }
+
+            popularSelect('servico', await servicosRes.json(), 'Selecione um serviço');
+            popularSelect('medico', await medicosRes.json(), 'Selecione um médico');
+            popularSelect('consultorio', await consultoriosRes.json(), 'Selecione um consultório');
+
+        } catch (error) {
+            console.error('Erro ao carregar opções:', error);
+            alert('Não foi possível carregar as opções de atendimento. Verifique a conexão com o servidor.');
+        }
+    }
+
+    /**
+     * Função para imprimir uma senha formatada em um ticket.
+     * @param {string} senhaGerada - A senha que deve ser impressa (ex: "C0001").
+     * @param {string} servico - O serviço selecionado.
+     * @param {string} medico - O médico selecionado.
+     * @param {string} consultorio - O consultório selecionado.
+     */
+    function imprimirTicket(senhaGerada, servico, medico, consultorio) {
+      // 1. Cria o conteúdo HTML que você quer imprimir.
+      //    Este estilo é otimizado para impressoras de ticket.
+      const conteudoParaImprimir = `
+        <html>
+          <head>
+            <title>Senha de Atendimento</title>
+            <style>
+              body {
+                font-family: 'Courier New', Courier, monospace;
+                text-align: center;
+                width: 280px; /* Largura comum para impressoras de ticket */
+                margin: 0 auto;
+                padding: 15px;
+                color: #000;
+              }
+              h2 {
+                font-size: 1.1em;
+                margin: 5px 0;
+                text-transform: uppercase;
+              }
+              .senha {
+                font-size: 2.8em;
+                font-weight: bold;
+                margin: 20px 0;
+                border: 2px dashed #000;
+                padding: 10px;
+              }
+              p {
+                font-size: 0.9em;
+                margin: 5px 0;
+              }
+              .info {
+                text-align: left;
+                margin-top: 15px;
+                border-top: 1px solid #ccc;
+                padding-top: 10px;
+              }
+              .data-hora {
+                font-size: 0.8em;
+                margin-top: 20px;
+              }
+            </style>
+          </head>
+          <body>
+            <h2>SENHA DE ATENDIMENTO</h2>
+            <div class="senha">${senhaGerada}</div>
+            <div class="info">
+              <p><strong>Serviço:</strong> ${servico}</p>
+              <p><strong>Médico:</strong> ${medico}</p>
+              <p><strong>Local:</strong> ${consultorio}</p>
+            </div>
+            <p class="data-hora">${new Date().toLocaleString('pt-BR')}</p>
+            <p>Aguarde para ser chamado no painel.</p>
+          </body>
+        </html>
+      `;
+
+      // 2. Abre uma nova janela (invisível) para a impressão.
+      const janelaImpressao = window.open('', 'PRINT', 'height=600,width=800');
+
+      // 3. Escreve o conteúdo do ticket na nova janela.
+      janelaImpressao.document.write(conteudoParaImprimir);
+      janelaImpressao.document.close(); // Essencial para finalizar o carregamento.
+
+      // 4. Foca na janela e chama a função de impressão do navegador.
+      janelaImpressao.focus();
+      
+      // Usamos um pequeno timeout para garantir que o conteúdo carregue antes de imprimir.
+      setTimeout(function () {
+        janelaImpressao.print();
+        janelaImpressao.close();
+      }, 250);
+    }
+
+    async function adicionarSenha() {
+      // 1. Pega os valores dos campos selecionados
+      const servicoSelect = document.getElementById("servico");
+      const textoServico = servicoSelect.value;
+      const medicoSelect = document.getElementById("medico");
+      const textoMedico = medicoSelect.value;
+      const consultorioSelect = document.getElementById("consultorio");
+      const textoConsultorio = consultorioSelect.value;
+      const tipoSelecionado = document.querySelector('input[name="tipo_atendimento"]:checked').value;
+
+      // Validação simples
+      if (!textoServico || !textoMedico || !textoConsultorio) {
+          alert('Por favor, selecione todas as opções antes de gerar a senha.');
+          return;
+      }
+
+      try {
+        // 2. Envia os dados para o backend e pede uma nova senha
+        const response = await fetch('http://localhost:3000/api/senhas', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            servico: textoServico,
+            medico: textoMedico,
+            consultorio: textoConsultorio,
+            tipo: tipoSelecionado
+          }),
+        });
+
+        const responseData = await response.json();
+
+        if (!response.ok) {
+          // Se o servidor retornar um erro, exibe a mensagem dele
+          throw new Error(responseData.message || 'Falha ao gerar a senha no servidor.');
+        }
+
+        // 3. Pega a senha gerada pelo backend
+        const novaSenha = responseData.senha;
+
+        // 4. Mostra a senha na tela
+        document.getElementById("senha").value = novaSenha;
+
+        // 5. Chama a função de impressão, passando todos os dados
+        imprimirTicket(novaSenha, textoServico, textoMedico, textoConsultorio);
+
+      } catch (error) {
+        console.error('Erro:', error);
+        alert(error.message || 'Não foi possível gerar a senha. Verifique se o servidor está rodando.');
+      }
+    }
+
+    // Carrega as opções assim que a página estiver pronta
+    document.addEventListener('DOMContentLoaded', carregarOpcoes);
+  </script>
+</body>
+</html>

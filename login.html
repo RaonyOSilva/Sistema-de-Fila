@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Sistema de Fila</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f4f4;
+        }
+        .login-container {
+            text-align: center;
+            padding: 40px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: white;
+            background-color: #007bff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #error-message {
+            color: #d9534f;
+            margin-top: 15px;
+            height: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h1>Sistema de Fila</h1>
+        <form id="login-form">
+            <div class="form-group">
+                <label for="username">Usuário</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Senha</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <button type="submit">Entrar</button>
+        </form>
+        <p id="error-message"></p>
+    </div>
+
+    <script>
+        document.getElementById('login-form').addEventListener('submit', async function (event) {
+            // 1. Previne o comportamento padrão do formulário (que é recarregar a página)
+            event.preventDefault();
+
+            // 2. Pega os elementos do DOM
+            const usernameInput = document.getElementById('username');
+            const passwordInput = document.getElementById('password');
+            const errorMessage = document.getElementById('error-message');
+
+            // 3. Limpa mensagens de erro anteriores
+            errorMessage.textContent = '';
+
+            // 4. Prepara os dados para enviar ao backend
+            const loginData = {
+                username: usernameInput.value,
+                password: passwordInput.value
+            };
+
+            try {
+                // 5. Envia a requisição de login para o servidor
+                const response = await fetch('http://localhost:3000/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(loginData),
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // 6. Se o login for bem-sucedido (status 200-299)
+                    // Salva o estado de login e os dados do atendente no sessionStorage
+                    const { usuario } = data;
+                    sessionStorage.setItem('isLoggedIn', 'true');
+                    sessionStorage.setItem('usuario', JSON.stringify(usuario));
+
+                    // Redireciona com base no perfil do usuário
+                    if (usuario.perfil === 'administrador') {
+                        window.location.href = 'admin.html';
+                    } else {
+                        window.location.href = 'atendente.html';
+                    }
+                } else {
+                    // 7. Se o login falhar, exibe a mensagem de erro retornada pelo servidor
+                    errorMessage.textContent = data.message || 'Erro desconhecido ao tentar fazer login.';
+                }
+            } catch (error) {
+                // 8. Em caso de erro de rede ou falha na comunicação com o servidor
+                console.error('Erro na requisição de login:', error);
+                errorMessage.textContent = 'Não foi possível conectar ao servidor. Tente novamente mais tarde.';
+            }
+        });
+    </script>
+</body>
+</html>

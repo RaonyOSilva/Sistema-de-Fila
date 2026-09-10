@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chamar Senhas</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background-color: #f0f2f5;
+            color: #333;
+        }
+        .page-wrapper {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 30px;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            flex-shrink: 0;
+        }
+        .page-header h1 {
+            margin: 0;
+            font-size: 1.8em;
+        }
+        #nome-atendente {
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        .main-content {
+            display: flex;
+            flex-grow: 1;
+            gap: 30px;
+            padding: 30px;
+            overflow: hidden; /* Prevents page scroll */
+        }
+        .panel {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+        }
+        .chamada-panel {
+            flex: 2;
+            text-align: center;
+        }
+        .lista-espera-panel {
+            flex: 1;
+            overflow-y: auto; /* Scroll only this panel */
+        }
+        .lista-espera-panel h2 {
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 20px;
+            position: sticky;
+            top: -30px; /* Counteract padding */
+            background-color: white;
+            padding: 20px 0 15px;
+            z-index: 10;
+        }
+        #lista-senhas-aguardando {
+            list-style-type: none;
+            padding: 0;
+        }
+        #lista-senhas-aguardando li {
+            background-color: #f8f9fa;
+            padding: 12px 18px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            border-left: 5px solid #007bff;
+            transition: background-color 0.3s;
+        }
+        #lista-senhas-aguardando li.preferencial {
+            border-left-color: #d9534f; /* Vermelho */
+        }
+        #lista-senhas-aguardando li.preferencial strong {
+            color: #d9534f;
+        }
+        #lista-senhas-aguardando li.sem-senhas {
+            border-left-color: #ccc;
+            text-align: center;
+        }
+        #lista-senhas-aguardando li strong {
+            font-size: 1.3em;
+        }
+        #lista-senhas-aguardando li span {
+            display: block;
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 4px;
+        }
+        #lista-senhas-aguardando li .tempo-espera {
+            font-weight: bold;
+            color: #d9534f;
+            margin-top: 8px;
+        }
+        .botoes-acao {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 30px;
+        }
+        .btn-chamar, .btn-rechamar, .btn-finalizar, .btn-nao-compareceu {
+            padding: 18px 25px;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            flex: 1; /* Faz os botões ocuparem o espaço igualmente */
+        }
+        .btn-chamar { background-color: #28a745; }
+        .btn-chamar:hover { background-color: #218838; }
+
+        .btn-rechamar { background-color: #f0ad4e; }
+        .btn-rechamar:hover { background-color: #ec971f; }
+
+        .btn-finalizar { background-color: #007bff; }
+        .btn-finalizar:hover { background-color: #0056b3; }
+
+        .btn-nao-compareceu { background-color: #dc3545; }
+        .btn-nao-compareceu:hover { background-color: #c82333; }
+
+        .btn-rechamar:disabled, .btn-finalizar:disabled, .btn-nao-compareceu:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        #senha-chamada {
+            margin: 20px 0;
+            padding: 30px;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            min-height: 150px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        #senha-chamada h2 { font-size: 4.5em; color: #d9534f; margin: 0; }
+        #senha-chamada p { margin: 8px 0 0; color: #555; font-size: 1.2em; }
+        #mensagem-status { color: #888; margin-top: 20px; height: 20px; font-style: italic; }
+        .page-footer {
+            padding: 15px 30px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+        .logout-btn {
+            padding: 10px 20px;
+            font-size: 1em;
+            color: white;
+            background-color: #dc3545;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .logout-btn:hover { background-color: #c82333; }
+    </style>
+</head>
+<body>
+    <script>
+        // Checa se o usuário está logado antes de carregar o resto da página
+        if (sessionStorage.getItem('isLoggedIn') !== 'true') {
+            // Se não estiver logado, redireciona para a página de login
+            window.location.href = 'login.html';
+        }
+    </script>
+    <div class="page-wrapper">
+        <header class="page-header">
+            <h1>Painel de Atendimento</h1>
+            <span id="nome-atendente"></span>
+        </header>
+
+        <main class="main-content">
+            <section class="panel chamada-panel">
+                <div id="senha-chamada">
+                    <h2 id="senha-atual">-</h2>
+                    <p id="consultorio-atual">Aguardando chamada...</p>
+                    <p id="servico-atual"></p>
+                </div>
+                <div class="botoes-acao">
+                    <button onclick="chamarProxima()" class="btn-chamar">Chamar Próxima Senha</button>
+                    <button onclick="reChamar()" id="btn-rechamar" class="btn-rechamar" disabled>Rechamar Senha</button>
+                    <button onclick="finalizarAtendimento()" id="btn-finalizar" class="btn-finalizar" disabled>Finalizar Atendimento</button>
+                    <button onclick="marcarNaoCompareceu()" id="btn-nao-compareceu" class="btn-nao-compareceu" disabled>Não Compareceu</button>
+                </div>
+                <p id="mensagem-status"></p>
+            </section>
+
+            <aside class="panel lista-espera-panel">
+                <h2>Senhas Aguardando</h2>
+                <ul id="lista-senhas-aguardando">
+                    <!-- Populado via JavaScript -->
+                </ul>
+            </aside>
+        </main>
+
+        <footer class="page-footer">
+            <button onclick="logout()" class="logout-btn">Sair</button>
+        </footer>
+    </div>
+
+    <script>
+        const statusMsg = document.getElementById('mensagem-status');
+        const listaSenhasUl = document.getElementById('lista-senhas-aguardando');
+        const btnRechamar = document.getElementById('btn-rechamar');
+        const btnFinalizar = document.getElementById('btn-finalizar');
+        const btnNaoCompareceu = document.getElementById('btn-nao-compareceu');
+
+        let senhaEmAtendimento = null; // Guarda a senha atual para poder rechamar
+
+        async function atualizarFilaDeEspera() {
+            try {
+                const response = await fetch('http://localhost:3000/api/senhas/aguardando');
+                if (!response.ok) {
+                    throw new Error('Não foi possível buscar a fila de espera.');
+                }
+                const senhasAguardando = await response.json();
+
+                listaSenhasUl.innerHTML = ''; // Limpa a lista
+
+                if (senhasAguardando.length === 0) {
+                    listaSenhasUl.innerHTML = '<li class="sem-senhas">Nenhuma senha aguardando.</li>';
+                    return;
+                }
+
+                senhasAguardando.forEach(senha => {
+                    const li = document.createElement('li');
+                    if (senha.tipo === 'preferencial') {
+                        li.classList.add('preferencial');
+                    }
+                    li.innerHTML = `
+                        <strong>${senha.senha}</strong>
+                        <span>Serviço: ${senha.servico || 'N/A'}</span>
+                        <span>Médico: ${senha.medico || 'N/A'}</span>
+                        <span class="tempo-espera">Aguardando: ${senha.tempo_espera || '00:00:00'}</span>
+                    `;
+                    listaSenhasUl.appendChild(li);
+                });
+            } catch (error) {
+                console.error('Erro ao atualizar fila de espera:', error);
+                listaSenhasUl.innerHTML = '<li class="sem-senhas">Erro ao carregar a fila.</li>';
+            }
+        }
+
+        async function chamarProxima() {
+            statusMsg.textContent = 'Chamando...';
+            const response = await fetch('http://localhost:3000/api/chamar', { method: 'POST' });
+            const data = await response.json();
+
+            if (!response.ok) {
+                statusMsg.textContent = data.message || 'Erro ao chamar senha.';
+                document.getElementById('senha-atual').textContent = '-';
+                document.getElementById('consultorio-atual').textContent = data.message || 'Aguardando chamada...';
+                document.getElementById('servico-atual').textContent = '';
+                senhaEmAtendimento = null; // Limpa a senha em atendimento
+                btnRechamar.disabled = true; // Desabilita o botão de rechamar
+                btnFinalizar.disabled = true;
+                btnNaoCompareceu.disabled = true;
+                return;
+            }
+
+            const { senhaChamada } = data;
+            senhaEmAtendimento = senhaChamada; // Armazena a senha chamada
+            btnRechamar.disabled = false; // Habilita o botão de rechamar
+            btnFinalizar.disabled = false;
+            btnNaoCompareceu.disabled = false;
+
+            document.getElementById('senha-atual').textContent = senhaChamada.senha;
+            document.getElementById('consultorio-atual').textContent = `Dirija-se ao ${senhaChamada.consultorio}`;
+            document.getElementById('servico-atual').textContent = `Serviço: ${senhaChamada.servico}`;
+            statusMsg.textContent = 'Senha chamada com sucesso!';
+
+            // Atualiza a fila de espera imediatamente após a chamada
+            atualizarFilaDeEspera();
+        }
+
+        async function reChamar() {
+            if (!senhaEmAtendimento) {
+                statusMsg.textContent = 'Nenhuma senha para rechamar.';
+                return;
+            }
+
+            statusMsg.textContent = `Rechamando a senha ${senhaEmAtendimento.senha}...`;
+
+            try {
+                const response = await fetch('http://localhost:3000/api/rechamar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ senha: senhaEmAtendimento.senha })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Erro ao rechamar a senha.');
+                }
+
+                statusMsg.textContent = data.message;
+            } catch (error) {
+                console.error('Erro ao rechamar:', error);
+                statusMsg.textContent = error.message;
+            }
+        }
+
+        async function finalizarAtendimento() {
+            if (!senhaEmAtendimento) {
+                statusMsg.textContent = 'Nenhuma senha para finalizar.';
+                return;
+            }
+
+            const usuario = JSON.parse(sessionStorage.getItem('usuario'));
+            if (!usuario || !usuario.id) {
+                statusMsg.textContent = 'Erro: dados do atendente não encontrados. Faça login novamente.';
+                return;
+            }
+
+            statusMsg.textContent = `Finalizando a senha ${senhaEmAtendimento.senha}...`;
+
+            try {
+                const response = await fetch('http://localhost:3000/api/finalizar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        senha: senhaEmAtendimento.senha,
+                        atendenteId: usuario.id
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Erro ao finalizar o atendimento.');
+                }
+
+                statusMsg.textContent = data.message;
+
+                // Limpa o painel de chamada
+                document.getElementById('senha-atual').textContent = '-';
+                document.getElementById('consultorio-atual').textContent = 'Aguardando chamada...';
+                document.getElementById('servico-atual').textContent = '';
+
+                // Reseta o estado dos botões
+                senhaEmAtendimento = null;
+                btnRechamar.disabled = true;
+                btnFinalizar.disabled = true;
+                btnNaoCompareceu.disabled = true;
+
+                // Atualiza a fila de espera
+                atualizarFilaDeEspera();
+            } catch (error) {
+                console.error('Erro ao finalizar:', error);
+                statusMsg.textContent = error.message;
+            }
+        }
+
+        async function marcarNaoCompareceu() {
+            if (!senhaEmAtendimento) {
+                statusMsg.textContent = 'Nenhuma senha para marcar como não compareceu.';
+                return;
+            }
+
+            statusMsg.textContent = `Marcando senha ${senhaEmAtendimento.senha} como não compareceu...`;
+
+            try {
+                const response = await fetch('http://localhost:3000/api/nao-compareceu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ senha: senhaEmAtendimento.senha })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Erro ao marcar como não compareceu.');
+                }
+
+                statusMsg.textContent = data.message;
+
+                // Limpa o painel e reseta os botões, similar a finalizarAtendimento
+                document.getElementById('senha-atual').textContent = '-';
+                document.getElementById('consultorio-atual').textContent = 'Aguardando chamada...';
+                document.getElementById('servico-atual').textContent = '';
+                senhaEmAtendimento = null;
+                btnRechamar.disabled = true;
+                btnFinalizar.disabled = true;
+                btnNaoCompareceu.disabled = true;
+
+                // Atualiza a fila de espera por consistência
+                atualizarFilaDeEspera();
+            } catch (error) {
+                console.error('Erro ao marcar como não compareceu:', error);
+                statusMsg.textContent = error.message;
+            }
+        }
+
+        function logout() {
+            sessionStorage.clear();
+            window.location.href = 'login.html';
+        }
+
+        // Carrega a fila ao iniciar e atualiza a cada 10 segundos
+        document.addEventListener('DOMContentLoaded', () => {
+            // Pega os dados do atendente do sessionStorage e exibe o nome
+            const usuario = JSON.parse(sessionStorage.getItem('usuario'));
+            if (usuario && usuario.nome_completo) {
+                document.getElementById('nome-atendente').textContent = `Olá, ${usuario.nome_completo}`;
+            }
+
+            atualizarFilaDeEspera();
+            setInterval(atualizarFilaDeEspera, 10000);
+        });
+    </script>
+</body>
+</html>
