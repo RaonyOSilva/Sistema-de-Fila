@@ -182,13 +182,18 @@
 
         <main class="main-content">
             <section class="panel chamada-panel">
+                <label for="guiche-selecionado"><strong>Seu guichê de atendimento</strong></label>
+                <select id="guiche-selecionado" style="display:block;width:100%;padding:14px;margin:12px 0;font-size:18px" disabled>
+                    <option value="">Carregando locais…</option>
+                </select>
+                <button type="button" id="atualizar-guiches" onclick="carregarGuiches()">Atualizar locais</button>
                 <div id="senha-chamada">
                     <h2 id="senha-atual">-</h2>
                     <p id="consultorio-atual">Aguardando chamada...</p>
                     <p id="servico-atual"></p>
                 </div>
                 <div class="botoes-acao">
-                    <button onclick="chamarProxima()" class="btn-chamar">Chamar Próxima Senha</button>
+                    <button onclick="chamarProxima()" id="btn-chamar" class="btn-chamar" disabled>Chamar Próxima Senha</button>
                     <button onclick="reChamar()" id="btn-rechamar" class="btn-rechamar" disabled>Rechamar Senha</button>
                     <button onclick="finalizarAtendimento()" id="btn-finalizar" class="btn-finalizar" disabled>Finalizar Atendimento</button>
                     <button onclick="marcarNaoCompareceu()" id="btn-nao-compareceu" class="btn-nao-compareceu" disabled>Não Compareceu</button>
@@ -217,6 +222,31 @@
         const btnNaoCompareceu = document.getElementById('btn-nao-compareceu');
 
         let senhaEmAtendimento = null; // Guarda a senha atual para poder rechamar
+        let chamando = false;
+        const guicheSelect = document.getElementById('guiche-selecionado');
+        const btnChamar = document.getElementById('btn-chamar');
+        function atualizarControlesGuiche() {
+            guicheSelect.disabled = chamando || !!senhaEmAtendimento;
+            document.getElementById('atualizar-guiches').disabled = chamando || !!senhaEmAtendimento;
+            btnChamar.disabled = chamando || !!senhaEmAtendimento || !guicheSelect.value;
+        }
+        guicheSelect.addEventListener('change', atualizarControlesGuiche);
+        async function carregarGuiches() {
+            if (chamando || senhaEmAtendimento) return;
+            const selecionado = guicheSelect.value;
+            guicheSelect.replaceChildren(new Option('Selecione seu guichê', ''));
+            guicheSelect.disabled = true;
+            btnChamar.disabled = true;
+            try {
+                const resposta = await fetch('http://localhost:3000/api/consultorios');
+                if (!resposta.ok) throw new Error('Não foi possível carregar os guichês.');
+                const locais = await resposta.json();
+                locais.forEach(local => guicheSelect.add(new Option(local.nome, local.id)));
+                guicheSelect.value = selecionado;
+                statusMsg.textContent = locais.length ? 'Selecione seu guichê antes de chamar.' : 'Cadastre os guichês na área de consultórios do administrador.';
+                atualizarControlesGuiche();
+            } catch (error) { statusMsg.textContent = error.message; }
+        }
 
         async function atualizarFilaDeEspera() {
             try {
@@ -253,8 +283,15 @@
         }
 
         async function chamarProxima() {
+            if (chamando || senhaEmAtendimento || !guicheSelect.value) return;
+            chamando = true;
+            atualizarControlesGuiche();
+            try {
             statusMsg.textContent = 'Chamando...';
-            const response = await fetch('http://localhost:3000/api/chamar', { method: 'POST' });
+            const response = await fetch('http://localhost:3000/api/chamar', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ guicheId: Number(guicheSelect.value) })
+            });
             const data = await response.json();
 
             if (!response.ok) {
@@ -282,6 +319,12 @@
 
             // Atualiza a fila de espera imediatamente após a chamada
             atualizarFilaDeEspera();
+            } catch (error) {
+                statusMsg.textContent = 'Não foi possível confirmar a chamada. Confira o painel antes de tentar novamente.';
+            } finally {
+                chamando = false;
+                atualizarControlesGuiche();
+            }
         }
 
         async function reChamar() {
@@ -351,6 +394,7 @@
 
                 // Reseta o estado dos botões
                 senhaEmAtendimento = null;
+                atualizarControlesGuiche();
                 btnRechamar.disabled = true;
                 btnFinalizar.disabled = true;
                 btnNaoCompareceu.disabled = true;
@@ -391,6 +435,7 @@
                 document.getElementById('consultorio-atual').textContent = 'Aguardando chamada...';
                 document.getElementById('servico-atual').textContent = '';
                 senhaEmAtendimento = null;
+                atualizarControlesGuiche();
                 btnRechamar.disabled = true;
                 btnFinalizar.disabled = true;
                 btnNaoCompareceu.disabled = true;
@@ -418,6 +463,7 @@
 
             atualizarFilaDeEspera();
             setInterval(atualizarFilaDeEspera, 10000);
+            carregarGuiches();
         });
     </script>
 </body>

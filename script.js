@@ -7,10 +7,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const guicheAtualEl = document.getElementById('guicheAtual');
     const tipoSenhaEl = document.getElementById('tipoSenha');
     const historicoDiv = document.getElementById('historicoAtendimentos');
+    const orientacaoDestino = document.getElementById('orientacaoDestino');
+    const horaAtual = document.getElementById('horaAtual');
+    const dataAtual = document.getElementById('dataAtual');
+    const formatoHora = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const formatoData = new Intl.DateTimeFormat('pt-BR', {
+        weekday: 'short', day: '2-digit', month: 'short', year: 'numeric'
+    });
+
+    function atualizarRelogio() {
+        const agora = new Date();
+        horaAtual.textContent = formatoHora.format(agora);
+        horaAtual.dateTime = agora.toISOString();
+        dataAtual.textContent = formatoData.format(agora);
+    }
+    atualizarRelogio();
+    setInterval(atualizarRelogio, 1000);
 
     // Variáveis de estado para controlar a última senha e a fala
     let ultimaDataChamada = null;
     let isSpeaking = false;
+    let ultimoHistorico = null;
 
     /**
      * Usa a API de Síntese de Voz do navegador para falar um texto.
@@ -75,7 +92,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Atualiza os textos
                     senhaAtualEl.textContent = senhaAtual.senha;
                     servicoAtualEl.textContent = senhaAtual.servico;
-                    guicheAtualEl.textContent = `Dirija-se ao ${senhaAtual.consultorio}`;
+                    orientacaoDestino.hidden = !senhaAtual.consultorio;
+                    guicheAtualEl.textContent = senhaAtual.consultorio || 'Local não informado';
                 } else if (!senhaAtual) {
                     // Limpa a tela se não houver nenhuma senha para mostrar
                     senhaAtualEl.textContent = '----';
@@ -83,6 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     tipoSenhaEl.textContent = '';
                     servicoAtualEl.textContent = 'Nenhuma senha em atendimento';
                     guicheAtualEl.textContent = 'Aguardando...';
+                    orientacaoDestino.hidden = true;
                 }
 
                 // 2. DISPARA OS EFEITOS (som e pisca-pisca) apenas se for uma nova chamada/rechamada
@@ -96,12 +115,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 // Atualiza o histórico
-                historicoDiv.innerHTML = '<p><strong>Últimos atendimentos:</strong></p>'; // Limpa e adiciona o título
-                historico.forEach(item => {
-                    const p = document.createElement('p');
-                    p.textContent = `${item.senha} - ${item.consultorio}`;
-                    historicoDiv.appendChild(p);
-                });
+                const itens = Array.isArray(historico) ? historico : [];
+                const assinatura = JSON.stringify(itens);
+                if (assinatura !== ultimoHistorico) {
+                    const fragmento = document.createDocumentFragment();
+                    itens.forEach(item => {
+                        const cartao = document.createElement('div');
+                        cartao.className = 'historico-item';
+                        cartao.setAttribute('role', 'listitem');
+                        const numero = document.createElement('span');
+                        numero.className = 'historico-senha';
+                        numero.textContent = item.senha;
+                        const destino = document.createElement('span');
+                        destino.className = 'historico-destino';
+                        destino.textContent = item.consultorio || 'Local não informado';
+                        cartao.append(numero, destino);
+                        fragmento.appendChild(cartao);
+                    });
+                    if (!itens.length) {
+                        const vazio = document.createElement('p');
+                        vazio.className = 'historico-vazio';
+                        vazio.textContent = 'Aguardando as próximas chamadas';
+                        fragmento.appendChild(vazio);
+                    }
+                    historicoDiv.replaceChildren(fragmento);
+                    ultimoHistorico = assinatura;
+                }
             })
             .catch(error => {
                 console.error('Falha ao atualizar o painel:', error);

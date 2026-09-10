@@ -8,18 +8,23 @@
 </head>
 <body>
   <div class="left">
-    <div>
-      <div class="titulo">SENHA ATUAL</div>
+    <header class="cabecalho-painel">
+      <div class="relogio" aria-label="Data e hora local">
+        <time id="horaAtual">--:--</time>
+        <span id="dataAtual"></span>
+      </div>
+    </header>
+    <div class="chamada-principal">
+      <div class="titulo" id="tituloSenha">SENHA ATUAL</div>
       <div class="senha-wrapper">
-        <div class="senha" id="senhaAtual">-</div>
+        <div class="senha" id="senhaAtual" aria-labelledby="tituloSenha">-</div>
         <div class="tipo-senha" id="tipoSenha"></div>
       </div>
       <div class="servico" id="servicoAtual">Nenhuma senha em atendimento</div>
-      <div class="guiche" id="guicheAtual">Aguardando chamada...</div>
-    </div>
-    <div class="historico" id="historicoAtendimentos">
-      <p><strong>Últimos atendimentos:</strong></p>
-      <!-- Populado via JavaScript -->
+      <div class="destino">
+        <div class="orientacao" id="orientacaoDestino" hidden>Dirija-se ao</div>
+        <div class="guiche" id="guicheAtual">Aguardando chamada...</div>
+      </div>
     </div>
   </div>
   <div class="right">
@@ -30,6 +35,15 @@
     <div class="overlay-text">Seja Bem Vindo(a)!</div>
   </div>
 
+  <section class="historico" aria-labelledby="tituloHistorico">
+    <h2 id="tituloHistorico">Últimas chamadas</h2>
+    <div class="historico-lista" id="historicoAtendimentos" role="list" aria-live="polite" aria-atomic="true">
+      <p class="historico-vazio">Aguardando as próximas chamadas</p>
+    </div>
+    <div class="historico-marca">
+      <img class="logo-clinica" src="logo.png" alt="COE — Centro Ortopédico Especializado" width="2055" height="765" />
+    </div>
+  </section>
   <script src="script.js"></script>
 </body>
 </html>

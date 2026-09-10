@@ -23,6 +23,11 @@ app.use(cors());
 // Middleware para permitir que o servidor entenda JSON vindo no corpo das requisições
 app.use(express.json());
 
+// Arquivos públicos do totem: não expor configurações ou backups da pasta.
+for (const arquivo of ['totem.html', 'totem.css', 'totem.js', 'logo.png']) {
+  app.get(`/${arquivo}`, (req, res) => res.sendFile(arquivo, { root: __dirname }));
+}
+
 // Configuração da conexão com o banco de dados MySQL
 // IMPORTANTE: Substitua com suas credenciais reais do MySQL
 const db = mysql.createPool({
@@ -107,30 +112,48 @@ app.get('/api/painel', async (req, res) => {
 
 // Rota para o atendente chamar a próxima senha
 app.post('/api/chamar', async (req, res) => {
+  const guicheId = Number(req.body?.guicheId);
+  if (!Number.isSafeInteger(guicheId) || guicheId <= 0) {
+    return res.status(400).json({ message: 'Selecione um guichê cadastrado antes de chamar.' });
+  }
+  let connection;
   try {
+    connection = await db.getConnection();
+    await connection.beginTransaction();
+    const [locais] = await connection.query('SELECT nome FROM consultorios WHERE id = ?', [guicheId]);
+    if (!locais.length) {
+      await connection.rollback();
+      return res.status(400).json({ message: 'Guichê não encontrado. Atualize a lista de locais.' });
+    }
     // 1. Encontra a próxima senha (prioriza 'preferencial', depois a mais antiga)
-    const [rows] = await db.query(
-      "SELECT id, senha, servico, consultorio FROM senhas WHERE status = 'aguardando' ORDER BY tipo DESC, id ASC LIMIT 1"
+    const [rows] = await connection.query(
+      "SELECT id, senha, servico, consultorio FROM senhas WHERE status = 'aguardando' ORDER BY tipo DESC, id ASC LIMIT 1 FOR UPDATE"
     );
 
     if (rows.length === 0) {
+      await connection.rollback();
       return res.status(404).json({ message: 'Nenhuma senha aguardando para ser chamada.' });
     }
 
     const proximaSenha = rows[0];
 
     // 2. Atualiza o status da senha para 'chamado' e registra a hora
-    await db.query(
-      "UPDATE senhas SET status = 'chamado', data_chamada = NOW(3) WHERE id = ?",
-      [proximaSenha.id]
+    await connection.query(
+      "UPDATE senhas SET status = 'chamado', data_chamada = NOW(3), consultorio = ? WHERE id = ?",
+      [locais[0].nome, proximaSenha.id]
     );
+    proximaSenha.consultorio = locais[0].nome;
+    await connection.commit();
 
     // 3. Retorna a senha que foi chamada
     res.json({ message: 'Senha chamada com sucesso!', senhaChamada: proximaSenha });
 
   } catch (error) {
     console.error('Erro ao chamar a próxima senha:', error);
+    if (connection) await connection.rollback();
     res.status(500).json({ message: 'Erro interno do servidor.' });
+  } finally {
+    if (connection) connection.release();
   }
 });
 

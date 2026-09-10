@@ -1,0 +1,40 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: "Segoe UI", Arial, sans-serif; color: #102c50; background: #f3f6fa; }
+[hidden] { display: none !important; }
+main { max-width: 1100px; min-height: 100dvh; margin: auto; padding: clamp(20px, 4vw, 48px); display: flex; flex-direction: column; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding-bottom: 28px; border-bottom: 1px solid #d9e2ec; }
+header img { width: clamp(160px, 28vw, 260px); height: auto; }
+header span { color: #526174; font-size: 18px; }
+section { padding: 28px 0; }
+.etapa { color: #126596; font-size: 15px; font-weight: 700; letter-spacing: 2px; }
+h1 { font-size: clamp(30px, 4vw, 48px); margin: 10px 0; line-height: 1.15; }
+.introducao { font-size: 21px; color: #526174; }
+fieldset { margin: 28px 0; padding: 0; border: 0; display: flex; flex-wrap: wrap; gap: 16px; }
+legend { font-size: 18px; font-weight: 600; margin-bottom: 12px; }
+label { flex: 1; min-width: 180px; border: 2px solid #ccd8e5; border-radius: 12px; padding: 20px; background: white; font-size: 22px; cursor: pointer; }
+label:has(input:checked) { border-color: #0057d9; background: #eaf2ff; }
+input { width: 22px; height: 22px; margin: 0 10px 0 0; accent-color: #0057d9; }
+.servicos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+button { border: 0; border-radius: 14px; padding: 22px 28px; background: #0057d9; color: white; font: 700 22px "Segoe UI", Arial, sans-serif; cursor: pointer; min-height: 64px; touch-action: manipulation; overflow-wrap: anywhere; }
+.servicos button { min-height: 130px; text-align: left; box-shadow: 0 5px 14px #102c5010; }
+button:active { background: #003e9d; }
+button:disabled { opacity: .55; cursor: wait; }
+:focus-visible { outline: 4px solid #edaa19; outline-offset: 4px; }
+.secundario { color: #0057d9; background: white; border: 2px solid #0057d9; }
+#status, #impressaoStatus { font-size: 20px; }
+#resultado { text-align: center; }
+.numero { font-size: clamp(64px, 12vw, 120px); font-weight: 800; color: #0057d9; margin: 24px 0; overflow-wrap: anywhere; }
+#descricao { font-size: 25px; font-weight: 600; }
+.acoes { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; margin: 30px 0; }
+.ajuda, footer { font-size: 17px; color: #526174; line-height: 1.5; }
+footer { margin-top: auto; padding-top: 20px; text-align: center; }
+#ticket { display: none; }
+@media (max-width: 520px) { .servicos { grid-template-columns: 1fr; } header span { display: none; } .servicos button { min-height: 90px; } }
+@media print {
+  @page { margin: 4mm; }
+  body { background: white; color: black; }
+  #totem { display: none; }
+  #ticket { display: block; width: 100%; max-width: 70mm; margin: 0 auto; padding: 0; text-align: center; font: 12pt Arial, sans-serif; overflow-wrap: anywhere; }
+  #ticket h2 { margin: 0; }
+  #ticket strong { display: block; font-size: 36pt; margin: 5mm 0; }
+}
