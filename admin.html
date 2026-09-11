@@ -200,7 +200,7 @@
         // Checa se o usuário está logado e se é administrador
         const usuario = JSON.parse(sessionStorage.getItem('usuario'));
         if (!usuario || usuario.perfil !== 'administrador') {
-            window.location.href = 'login.html';
+            window.location.href = 'login.html?modulo=admin';
         }
     </script>
     <div class="page-wrapper">
@@ -238,6 +238,13 @@
 
             <main class="main-content">
                 <section id="panel-dashboard" class="panel">
+                    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:24px">
+                        <label for="tipo-grafico"><strong>Exibir gráficos em:</strong></label>
+                        <select id="tipo-grafico" style="padding:10px 16px;font-size:16px;border:1px solid #ccc;border-radius:6px;width:auto">
+                            <option value="pie">Pizza</option>
+                            <option value="bar">Barras</option>
+                        </select>
+                    </div>
                     <div class="dashboard-item">
                         <div>
                             <h3>Atendimentos por Serviço (Últimos 30 dias)</h3>
@@ -367,7 +374,7 @@
         document.getElementById('nome-usuario').textContent = `Olá, ${usuario.nome_completo}`;
         function logout() {
             sessionStorage.clear();
-            window.location.href = 'login.html';
+            window.location.href = 'login.html?modulo=admin';
         }
 
         // --- Lógica do Menu ---
@@ -416,6 +423,33 @@
         let atendimentosChart = null;
         let atendimentosChartHoje = null;
         let canceladasChartHoje = null;
+        const seletorGrafico = document.getElementById('tipo-grafico');
+        function opcoesGrafico() {
+            const options = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } }
+            };
+            if (seletorGrafico.value === 'bar') {
+                options.scales = {
+                    y: { beginAtZero: true, ticks: { precision: 0 }, title: { display: true, text: 'Quantidade de senhas' } },
+                    x: { grid: { display: false } }
+                };
+            }
+            return options;
+        }
+        function trocarTipoGrafico(grafico) {
+            if (!grafico) return null;
+            const canvas = grafico.canvas;
+            const dados = grafico.data;
+            grafico.destroy();
+            return new Chart(canvas, { type: seletorGrafico.value, data: dados, options: opcoesGrafico() });
+        }
+        seletorGrafico.addEventListener('change', () => {
+            atendimentosChart = trocarTipoGrafico(atendimentosChart);
+            atendimentosChartHoje = trocarTipoGrafico(atendimentosChartHoje);
+            canceladasChartHoje = trocarTipoGrafico(canceladasChartHoje);
+        });
         async function carregarGraficoAtendimentos() {
             const chartContainer = document.getElementById('chart-container');
             const canvas = document.getElementById('atendimentosChart');
@@ -460,7 +494,7 @@
                 ];
 
                 atendimentosChart = new Chart(ctx, {
-                    type: 'pie',
+                    type: seletorGrafico.value,
                     data: {
                         labels: labels,
                         datasets: [{
@@ -471,13 +505,7 @@
                             borderWidth: 2
                         }]
                     },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { display: false } // Desabilita a legenda padrão
-                        }
-                    }
+                    options: opcoesGrafico()
                 });
 
                 // Gera a legenda customizada
@@ -545,7 +573,7 @@
                 ];
 
                 atendimentosChartHoje = new Chart(ctx, {
-                    type: 'pie',
+                    type: seletorGrafico.value,
                     data: {
                         labels: labels,
                         datasets: [{
@@ -556,11 +584,7 @@
                             borderWidth: 2
                         }]
                     },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } }
-                    }
+                    options: opcoesGrafico()
                 });
 
                 // Gera a legenda customizada
@@ -678,7 +702,7 @@
                 ].map(color => color + 'B3'); // Adiciona 70% de opacidade
 
                 canceladasChartHoje = new Chart(ctx, {
-                    type: 'pie',
+                    type: seletorGrafico.value,
                     data: {
                         labels: labels,
                         datasets: [{
@@ -689,11 +713,7 @@
                             borderWidth: 2
                         }]
                     },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } }
-                    }
+                    options: opcoesGrafico()
                 });
 
                 // Gera a legenda customizada

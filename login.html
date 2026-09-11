@@ -76,7 +76,7 @@
                 <label for="password">Senha</label>
                 <input type="password" id="password" name="password" required>
             </div>
-            <div class="form-group">
+            <div class="form-group" id="grupo-guiche" hidden>
                 <label for="guiche-login">Guichê — módulo Chamar Senhas</label>
                 <select id="guiche-login" disabled><option value="">Carregando guichês…</option></select>
                 <button type="button" id="recarregar-guiches" hidden>Recarregar guichês</button>
@@ -87,6 +87,10 @@
     </div>
 
     <script>
+        const acessoAdmin = new URLSearchParams(window.location.search).get('modulo') === 'admin';
+        document.querySelector('h1').textContent = acessoAdmin ? 'Acesso Administrativo' : 'Chamar Senhas';
+        document.title = acessoAdmin ? 'Login — Administração' : 'Login — Chamar Senhas';
+        document.getElementById('grupo-guiche').hidden = acessoAdmin;
         const guicheLogin = document.getElementById('guiche-login');
         async function carregarGuichesLogin() {
             guicheLogin.disabled = true;
@@ -105,7 +109,7 @@
             }
         }
         document.getElementById('recarregar-guiches').addEventListener('click', carregarGuichesLogin);
-        carregarGuichesLogin();
+        if (!acessoAdmin) carregarGuichesLogin();
         document.getElementById('login-form').addEventListener('submit', async function (event) {
             // 1. Previne o comportamento padrão do formulário (que é recarregar a página)
             event.preventDefault();
@@ -140,7 +144,11 @@
                     // 6. Se o login for bem-sucedido (status 200-299)
                     // Salva o estado de login e os dados do atendente no sessionStorage
                     const { usuario } = data;
-                    if (usuario.perfil !== 'administrador' && !guicheLogin.value) {
+                    if (acessoAdmin && usuario.perfil !== 'administrador') {
+                        errorMessage.textContent = 'Este módulo é exclusivo para administradores.';
+                        return;
+                    }
+                    if (!acessoAdmin && !guicheLogin.value) {
                         errorMessage.textContent = 'Selecione seu guichê para entrar no módulo Chamar Senhas.';
                         guicheLogin.focus();
                         return;
@@ -151,7 +159,7 @@
                     sessionStorage.setItem('usuario', JSON.stringify(usuario));
 
                     // Redireciona com base no perfil do usuário
-                    if (usuario.perfil === 'administrador') {
+                    if (acessoAdmin) {
                         window.location.href = 'admin.html';
                     } else {
                         window.location.href = 'atendente.html';
