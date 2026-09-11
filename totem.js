@@ -3,6 +3,18 @@ const api = location.protocol === 'file:' ? 'http://localhost:3000/api' : '/api'
 const el = id => document.getElementById(id);
 let emitindo = false;
 let retorno;
+let servicoSelecionado = null;
+
+function selecionarServico(servico) {
+  if (emitindo) return;
+  servicoSelecionado = servico;
+  el('servicoSelecionado').textContent = servico;
+  el('statusEmissao').textContent = '';
+  el('selecao').hidden = true;
+  el('selecaoTipo').hidden = false;
+  el('tituloTipo').focus();
+  agendarRetorno();
+}
 
 async function carregarServicos() {
   el('recarregar').hidden = true;
@@ -16,7 +28,7 @@ async function carregarServicos() {
     for (const servico of servicos) {
       const botao = document.createElement('button');
       botao.textContent = servico.nome;
-      botao.addEventListener('click', () => emitir(servico.nome));
+      botao.addEventListener('click', () => selecionarServico(servico.nome));
       el('servicos').appendChild(botao);
     }
     el('status').textContent = servicos.length ? '' : 'Nenhum serviço disponível. Procure a recepção.';
@@ -29,7 +41,7 @@ async function carregarServicos() {
 
 function agendarRetorno() {
   clearTimeout(retorno);
-  retorno = setTimeout(reiniciar, 45000);
+  retorno = setTimeout(reiniciar, el('resultado').hidden ? 45000 : 8000);
 }
 
 function imprimir() {
@@ -39,13 +51,14 @@ function imprimir() {
   agendarRetorno();
 }
 
-async function emitir(servico) {
-  if (emitindo) return;
+async function emitir(tipo) {
+  if (emitindo || !servicoSelecionado) return;
+  const servico = servicoSelecionado;
+  clearTimeout(retorno);
   emitindo = true;
-  el('tipo').disabled = true;
+  el('selecaoTipo').querySelectorAll('button').forEach(botao => { botao.disabled = true; });
   el('servicos').querySelectorAll('button').forEach(botao => { botao.disabled = true; });
-  el('status').textContent = 'Emitindo sua senha…';
-  const tipo = document.querySelector('input[name="tipo"]:checked').value;
+  el('statusEmissao').textContent = 'Emitindo sua senha…';
   try {
     const resposta = await fetch(`${api}/senhas`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -62,27 +75,30 @@ async function emitir(servico) {
     el('ticketTipo').textContent = tipoTexto;
     el('ticketData').textContent = new Date().toLocaleString('pt-BR');
     el('selecao').hidden = true;
+    el('selecaoTipo').hidden = true;
     el('resultado').hidden = false;
     el('impressaoStatus').textContent = 'Retire o comprovante na impressora.';
-    el('nova').focus();
+    el('tituloResultado').focus();
     imprimir();
   } catch {
     // Não repetir automaticamente: o servidor pode ter gravado antes da falha de rede.
-    el('status').textContent = 'Não foi possível confirmar a emissão. Procure a recepção antes de tentar novamente, para evitar duas senhas.';
+    el('statusEmissao').textContent = 'Não foi possível confirmar a emissão. Procure a recepção antes de tentar novamente, para evitar duas senhas.';
   }
 }
 
 function reiniciar() {
   clearTimeout(retorno);
   emitindo = false;
-  el('tipo').disabled = false;
-  document.querySelector('input[value="normal"]').checked = true;
+  servicoSelecionado = null;
+  el('selecaoTipo').hidden = true;
+  el('selecaoTipo').querySelectorAll('button').forEach(botao => { botao.disabled = false; });
   el('resultado').hidden = true;
   el('selecao').hidden = false;
   carregarServicos();
 }
 el('recarregar').addEventListener('click', carregarServicos);
-el('reimprimir').addEventListener('click', imprimir);
-el('nova').addEventListener('click', reiniciar);
+el('tipoNormal').addEventListener('click', () => emitir('normal'));
+el('tipoPreferencial').addEventListener('click', () => emitir('preferencial'));
+el('voltarServicos').addEventListener('click', () => { if (!emitindo) reiniciar(); });
 window.addEventListener('afterprint', agendarRetorno);
 carregarServicos();

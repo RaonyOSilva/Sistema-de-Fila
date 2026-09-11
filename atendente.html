@@ -182,11 +182,11 @@
 
         <main class="main-content">
             <section class="panel chamada-panel">
-                <label for="guiche-selecionado"><strong>Seu guichê de atendimento</strong></label>
-                <select id="guiche-selecionado" style="display:block;width:100%;padding:14px;margin:12px 0;font-size:18px" disabled>
+                <p><strong id="guiche-sessao">Validando guichê…</strong></p>
+                <select id="guiche-selecionado" hidden disabled>
                     <option value="">Carregando locais…</option>
                 </select>
-                <button type="button" id="atualizar-guiches" onclick="carregarGuiches()">Atualizar locais</button>
+                <button type="button" id="atualizar-guiches" onclick="carregarGuiches()" hidden>Tentar conexão novamente</button>
                 <div id="senha-chamada">
                     <h2 id="senha-atual">-</h2>
                     <p id="consultorio-atual">Aguardando chamada...</p>
@@ -226,14 +226,15 @@
         const guicheSelect = document.getElementById('guiche-selecionado');
         const btnChamar = document.getElementById('btn-chamar');
         function atualizarControlesGuiche() {
-            guicheSelect.disabled = chamando || !!senhaEmAtendimento;
+            guicheSelect.disabled = true;
             document.getElementById('atualizar-guiches').disabled = chamando || !!senhaEmAtendimento;
             btnChamar.disabled = chamando || !!senhaEmAtendimento || !guicheSelect.value;
         }
         guicheSelect.addEventListener('change', atualizarControlesGuiche);
         async function carregarGuiches() {
             if (chamando || senhaEmAtendimento) return;
-            const selecionado = guicheSelect.value;
+            const selecionado = sessionStorage.getItem('guicheId');
+            if (!selecionado) { window.location.replace('login.html'); return; }
             guicheSelect.replaceChildren(new Option('Selecione seu guichê', ''));
             guicheSelect.disabled = true;
             btnChamar.disabled = true;
@@ -243,9 +244,19 @@
                 const locais = await resposta.json();
                 locais.forEach(local => guicheSelect.add(new Option(local.nome, local.id)));
                 guicheSelect.value = selecionado;
-                statusMsg.textContent = locais.length ? 'Selecione seu guichê antes de chamar.' : 'Cadastre os guichês na área de consultórios do administrador.';
+                if (!guicheSelect.value) {
+                    sessionStorage.removeItem('guicheId');
+                    window.location.replace('login.html');
+                    return;
+                }
+                document.getElementById('guiche-sessao').textContent = `Atendendo em: ${guicheSelect.selectedOptions[0].textContent}`;
+                document.getElementById('atualizar-guiches').hidden = true;
+                statusMsg.textContent = 'Pronto para chamar. Para mudar de guichê, saia e entre novamente.';
                 atualizarControlesGuiche();
-            } catch (error) { statusMsg.textContent = error.message; }
+            } catch (error) {
+                statusMsg.textContent = error.message;
+                document.getElementById('atualizar-guiches').hidden = false;
+            }
         }
 
         async function atualizarFilaDeEspera() {

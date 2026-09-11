@@ -13,23 +13,30 @@
     <section id="selecao" aria-labelledby="titulo">
       <p class="etapa">BOAS-VINDAS</p>
       <h1 id="titulo">Retire sua senha</h1>
-      <p class="introducao">Escolha o atendimento e toque no serviço desejado.</p>
-      <fieldset id="tipo"><legend>Tipo de atendimento</legend>
-        <label><input type="radio" name="tipo" value="normal" checked> Normal</label>
-        <label><input type="radio" name="tipo" value="preferencial"> Preferencial</label>
-      </fieldset>
+      <p class="introducao">Toque no serviço desejado para começar.</p>
       <div id="servicos" class="servicos" aria-label="Serviços disponíveis"></div>
       <p id="status" role="status">Carregando serviços…</p>
       <button id="recarregar" class="secundario" hidden>Tentar novamente</button>
     </section>
+    <section id="selecaoTipo" hidden aria-labelledby="tituloTipo">
+      <p class="etapa">TIPO DE ATENDIMENTO</p>
+      <h1 id="tituloTipo" tabindex="-1">Como deseja ser atendido?</h1>
+      <p class="introducao" id="servicoSelecionado"></p>
+      <p>Toque em uma opção para emitir e imprimir sua senha.</p>
+      <div class="servicos">
+        <button id="tipoNormal" type="button">Normal</button>
+        <button id="tipoPreferencial" type="button">Preferencial</button>
+      </div>
+      <p id="statusEmissao" role="status"></p>
+      <button id="voltarServicos" class="secundario" type="button">Voltar aos serviços</button>
+    </section>
     <section id="resultado" hidden aria-labelledby="tituloResultado">
       <p class="etapa">SENHA EMITIDA</p>
-      <h1 id="tituloResultado">Aguarde a chamada no painel</h1>
+      <h1 id="tituloResultado" tabindex="-1">Aguarde a chamada no painel</h1>
       <p id="numero" class="numero"></p>
       <p id="descricao"></p>
       <p id="impressaoStatus" role="status">Retire o comprovante na impressora.</p>
-      <div class="acoes"><button id="reimprimir" class="secundario">Imprimir novamente</button><button id="nova">Concluir</button></div>
-      <p class="ajuda">Se o comprovante não sair, toque em “Imprimir novamente” ou procure a recepção.</p>
+      <p class="ajuda">Se o comprovante não sair, procure a recepção.</p>
     </section>
     <footer>Precisa de ajuda? Procure a recepção.</footer>
   </main>
